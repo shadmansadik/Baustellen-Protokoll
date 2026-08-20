@@ -1,0 +1,23 @@
+PDP DOKUMENTATION — ANDROID QUICK START
+
+FASTEST TEST ON ANDROID
+1. Copy this folder/ZIP to your Android phone and extract it.
+2. Open index.html in Chrome (or another modern browser).
+3. Camera/photo selection and local saving can be tested immediately.
+4. Press "Speichern + PDF". Android opens the print screen; choose "Save as PDF".
+
+IMPORTANT GPS NOTE
+Android/Chrome only gives web pages precise GPS in a secure context (HTTPS) or localhost.
+So for FULL GPS + address + install-to-home-screen behaviour, serve this folder from an HTTPS site.
+Once opened over HTTPS in Chrome:
+- Allow Location and Camera permissions.
+- Chrome menu > Add to Home screen / Install app.
+- It then launches like a normal Android app and keeps the core UI cached offline.
+
+PDF
+No online PDF JavaScript library is required in this Android version.
+The app uses Android/Chrome's built-in print-to-PDF function.
+
+DATA
+The current prototype stores projects and photos in browser storage. Use "Backup JSON" regularly.
+For production/large photo volumes, move photos to IndexedDB or a backend/cloud storage.
