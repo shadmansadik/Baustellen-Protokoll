@@ -194,6 +194,17 @@ const Camera = (() => {
     }
   }
 
+  /** Re-encodes an oriented bitmap to a JPEG blob with no stamp bar — used
+   *  for uploaded photos that have no GPS data, so they stay untouched
+   *  instead of getting a "no location" label burned in. */
+  async function renderPlainImage(bitmap) {
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0);
+    return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.9));
+  }
+
   async function processUploadedPhoto(file, onStatus) {
     onStatus && onStatus("Foto-Daten werden gelesen …");
     const { gps, dateTaken } = await readExif(file);
@@ -204,17 +215,21 @@ const Camera = (() => {
       address = await reverseGeocode(gps.lat, gps.lng);
     }
 
-    onStatus && onStatus("Foto wird gestempelt …");
+    onStatus && onStatus("Foto wird verarbeitet …");
     const bitmap = await loadOrientedBitmap(file);
     const when = dateTaken || new Date(file.lastModified || Date.now());
-    const timestampText = formatTimestamp(when);
-    const addressText = address ? address.short : (gps ? "Adresse unbekannt" : "Kein GPS im Foto vorhanden");
 
-    const blob = await stampImage(bitmap, {
-      timestampText,
-      addressText,
-      gps
-    });
+    // Only stamp the photo if we actually found a real GPS position —
+    // no GPS means no "Kein GPS" placeholder and no time burned in either,
+    // the original photo is kept as-is.
+    let blob;
+    if (gps) {
+      const timestampText = formatTimestamp(when);
+      const addressText = address ? address.short : "Adresse unbekannt";
+      blob = await stampImage(bitmap, { timestampText, addressText, gps });
+    } else {
+      blob = await renderPlainImage(bitmap);
+    }
 
     return {
       id: "photo-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
