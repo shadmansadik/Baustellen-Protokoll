@@ -1,12 +1,12 @@
 /*
  * export.js — turns a project into a PDF (jsPDF) or a Word document
  * (docx.js), following the layout of the original PDP_XXX_*.docx
- * samples: an optional company logo, a numbered overview list of all
- * locations, then per-location bold heading, description, photos side
- * by side (with optional captions) — and for Mängelbeseitigung
- * projects, a second "Mängelbeseitigung:" block with the fix
- * description and after-photos. Ends with an optional deadline and
- * signature line, matching "Frist zur Mängelbeseitigung" / "Gez.".
+ * samples: an optional company logo, then per-location bold heading,
+ * description, photos side by side (with optional captions) — and
+ * for Mängelbeseitigung projects, a second "Mängelbeseitigung:" block
+ * with the fix description and after-photos. Ends with an optional
+ * deadline and signature line, matching "Frist zur
+ * Mängelbeseitigung" / "Gez.".
  */
 const Export = (() => {
 
@@ -151,19 +151,6 @@ const Export = (() => {
       y += 3;
     }
 
-    // ---- overview list ----
-    const titledEntries = project.entries.filter(e => e.title);
-    if (titledEntries.length > 1) {
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10.5);
-      titledEntries.forEach((e, i) => {
-        needSpace(6);
-        doc.text(`${i + 1}. ${e.title}`, margin, y);
-        y += 5.5;
-      });
-      y += 4;
-    }
-
     // ---- entries ----
     for (const entry of project.entries) {
       needSpace(12);
@@ -237,15 +224,6 @@ const Export = (() => {
     }
     if (project.teilnehmer && project.teilnehmer.length) {
       children.push(new Paragraph({ children: [new TextRun({ text: `Teilnehmer: ${project.teilnehmer.join(", ")}` })], spacing: { after: 200 } }));
-    }
-
-    // ---- overview list ----
-    const titledEntries = project.entries.filter(e => e.title);
-    if (titledEntries.length > 1) {
-      titledEntries.forEach((e, i) => {
-        children.push(new Paragraph({ children: [new TextRun({ text: `${i + 1}. ${e.title}` })], spacing: { after: 40 } }));
-      });
-      children.push(new Paragraph({ children: [new TextRun({ text: "" })], spacing: { after: 160 } }));
     }
 
     const usableWidthPx = 620; // ~ content width at 96dpi for a two-column photo row
