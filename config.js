@@ -10,6 +10,6 @@
  * PDF/Word manually.
  */
 window.PDP_CONFIG = {
-  GOOGLE_CLIENT_ID: "", // e.g. "1234567890-abc123.apps.googleusercontent.com"
+  GOOGLE_CLIENT_ID: "99688847161-708fsnvj0m6l77d48gp6ddbquj8ehis1.apps.googleusercontent.com", // e.g. "1234567890-abc123.apps.googleusercontent.com"
   DRIVE_ROOT_FOLDER_NAME: "Baustellen-Protokolle"
 };
