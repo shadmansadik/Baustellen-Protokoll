@@ -18,6 +18,9 @@ const ProjectModel = (() => {
       termin: termin || "",
       teilnehmer: teilnehmer || [],
       linkedProjectId: linkedProjectId || null,
+      deadline: "",        // "Frist zur Mängelbeseitigung" — optional, set later
+      signedBy: "",         // "Gez." — optional, set later
+      signedDate: "",
       entries: [],
       driveFolderId: null,
       driveJsonId: null,
@@ -31,6 +34,7 @@ const ProjectModel = (() => {
       id: newId("entry"),
       title: title || "",
       description: description || "",
+      status: "open",      // "open" | "done" — simple progress tracking
       photos: [],
       fix: null // { description, photos: [] } once a Mängelbeseitigung is added
     };
@@ -52,6 +56,15 @@ const ProjectModel = (() => {
     return clone;
   }
 
+  /** Swaps entry at `index` with its neighbour ("up" or "down"). No-op at the edges. */
+  function moveEntry(project, index, direction) {
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= project.entries.length) return false;
+    const arr = project.entries;
+    [arr[index], arr[target]] = [arr[target], arr[index]];
+    return true;
+  }
+
   /** Photo metadata without the blob, e.g. for quick list rendering. */
   function photoLabel(photo) {
     const parts = [];
@@ -63,5 +76,5 @@ const ProjectModel = (() => {
     return parts.join(" · ");
   }
 
-  return { newId, createProject, createEntry, ensureFix, toSerializable, photoLabel };
+  return { newId, createProject, createEntry, ensureFix, moveEntry, toSerializable, photoLabel };
 })();

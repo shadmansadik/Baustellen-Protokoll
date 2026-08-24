@@ -1,9 +1,12 @@
 /*
  * export.js — turns a project into a PDF (jsPDF) or a Word document
  * (docx.js), following the layout of the original PDP_XXX_*.docx
- * samples: bold location heading, description text, photos side by
- * side, and — for Mängelbeseitigung projects — a second "Mängel-
- * beseitigung:" block with the fix description and after-photos.
+ * samples: an optional company logo, a numbered overview list of all
+ * locations, then per-location bold heading, description, photos side
+ * by side (with optional captions) — and for Mängelbeseitigung
+ * projects, a second "Mängelbeseitigung:" block with the fix
+ * description and after-photos. Ends with an optional deadline and
+ * signature line, matching "Frist zur Mängelbeseitigung" / "Gez.".
  */
 const Export = (() => {
 
@@ -16,20 +19,24 @@ const Export = (() => {
     });
   }
 
-  function blobDims(blob) {
+  function dimsFromSrc(src) {
     return new Promise((resolve) => {
-      const url = URL.createObjectURL(blob);
       const img = new Image();
-      img.onload = () => {
-        resolve({ width: img.naturalWidth, height: img.naturalHeight });
-        URL.revokeObjectURL(url);
-      };
-      img.onerror = () => {
-        resolve({ width: 800, height: 1067 });
-        URL.revokeObjectURL(url);
-      };
-      img.src = url;
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve({ width: 800, height: 1067 });
+      img.src = src;
     });
+  }
+
+  async function blobDims(blob) {
+    const url = URL.createObjectURL(blob);
+    const dims = await dimsFromSrc(url);
+    URL.revokeObjectURL(url);
+    return dims;
+  }
+
+  function guessImageFormat(dataUrl) {
+    return dataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
   }
 
   function formatTermin(termin) {
@@ -40,9 +47,17 @@ const Export = (() => {
     return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())} Uhr`;
   }
 
+  function formatDateOnly(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr;
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+  }
+
   // ---------------------------------------------------------------- PDF
 
-  async function buildPdf(project) {
+  async function buildPdf(project, settings) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageWidth = 210, pageHeight = 297, margin = 15;
@@ -74,24 +89,53 @@ const Export = (() => {
       y += lines.length * 5 + 2;
     }
 
+    function underlinedText(text, size = 11) {
+      needSpace(8);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(size);
+      doc.text(text, margin, y);
+      const w = doc.getTextWidth(text);
+      doc.setLineWidth(0.3);
+      doc.line(margin, y + 1, margin + w, y + 1);
+      y += 7;
+    }
+
     async function photoRow(photos) {
       if (!photos || !photos.length) return;
       const gap = 6;
       const cellW = (contentWidth - gap) / 2;
-      const maxH = 78;
+      const maxH = 74;
       for (let i = 0; i < photos.length; i += 2) {
         const pair = photos.slice(i, i + 2);
         const dims = await Promise.all(pair.map(p => blobDims(p.blob)));
         const heights = dims.map(d => Math.min(maxH, cellW * (d.height / d.width)));
         const rowH = Math.max(...heights);
-        needSpace(rowH + 4);
+        const hasCaption = pair.some(p => p.caption);
+        needSpace(rowH + (hasCaption ? 9 : 4));
         for (let j = 0; j < pair.length; j++) {
           const url = await blobToDataURL(pair[j].blob);
           const drawW = Math.min(cellW, heights[j] * (dims[j].width / dims[j].height));
-          doc.addImage(url, "JPEG", margin + j * (cellW + gap), y, drawW, heights[j]);
+          const x = margin + j * (cellW + gap);
+          doc.addImage(url, "JPEG", x, y, drawW, heights[j]);
+          if (pair[j].caption) {
+            doc.setFont("helvetica", "italic");
+            doc.setFontSize(8.5);
+            doc.text(pair[j].caption, x, y + rowH + 4);
+          }
         }
-        y += rowH + 5;
+        y += rowH + (hasCaption ? 9 : 5);
       }
+    }
+
+    // ---- logo ----
+    if (settings && settings.logoDataUrl) {
+      try {
+        const dims = await dimsFromSrc(settings.logoDataUrl);
+        const maxW = 40, maxH = 18;
+        let w = maxW, h = maxW * (dims.height / dims.width);
+        if (h > maxH) { h = maxH; w = maxH * (dims.width / dims.height); }
+        doc.addImage(settings.logoDataUrl, guessImageFormat(settings.logoDataUrl), pageWidth - margin - w, y, w, h);
+      } catch (e) { /* logo is optional, ignore failures */ }
     }
 
     // ---- header ----
@@ -105,6 +149,19 @@ const Export = (() => {
       y += 8;
     } else {
       y += 3;
+    }
+
+    // ---- overview list ----
+    const titledEntries = project.entries.filter(e => e.title);
+    if (titledEntries.length > 1) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10.5);
+      titledEntries.forEach((e, i) => {
+        needSpace(6);
+        doc.text(`${i + 1}. ${e.title}`, margin, y);
+        y += 5.5;
+      });
+      y += 4;
     }
 
     // ---- entries ----
@@ -123,18 +180,53 @@ const Export = (() => {
       y += 4;
     }
 
+    // ---- deadline & signature ----
+    if (project.deadline || project.signedBy) {
+      needSpace(16);
+      y += 4;
+      if (project.deadline) {
+        underlinedText(`Frist zur Mängelbeseitigung: ${formatDateOnly(project.deadline)}`);
+        y += 2;
+      }
+      if (project.signedBy) {
+        needSpace(8);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        const sigDate = project.signedDate ? `, ${formatDateOnly(project.signedDate)}` : "";
+        doc.text(`Gez. ${project.signedBy}${sigDate}`, margin, y);
+        y += 7;
+      }
+    }
+
     return doc.output("blob");
   }
 
   // --------------------------------------------------------------- DOCX
 
-  async function buildDocx(project) {
+  async function buildDocx(project, settings) {
     const {
-      Document, Packer, Paragraph, TextRun, ImageRun, HeadingLevel,
-      Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle
+      Document, Packer, Paragraph, TextRun, ImageRun, UnderlineType, AlignmentType
     } = window.docx;
 
     const children = [];
+
+    // ---- logo ----
+    if (settings && settings.logoDataUrl) {
+      try {
+        const dims = await dimsFromSrc(settings.logoDataUrl);
+        const maxW = 160, maxH = 70;
+        let w = maxW, h = maxW * (dims.height / dims.width);
+        if (h > maxH) { h = maxH; w = maxH * (dims.width / dims.height); }
+        const res = await fetch(settings.logoDataUrl);
+        const buf = await res.arrayBuffer();
+        const isPng = settings.logoDataUrl.startsWith("data:image/png");
+        children.push(new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          children: [new ImageRun({ data: buf, transformation: { width: Math.round(w), height: Math.round(h) }, type: isPng ? "png" : "jpg" })],
+          spacing: { after: 120 }
+        }));
+      } catch (e) { /* logo is optional, ignore failures */ }
+    }
 
     children.push(new Paragraph({
       children: [new TextRun({ text: project.title, bold: true, size: 32 })],
@@ -144,36 +236,46 @@ const Export = (() => {
       children.push(new Paragraph({ children: [new TextRun({ text: `Termin: ${formatTermin(project.termin)}` })] }));
     }
     if (project.teilnehmer && project.teilnehmer.length) {
-      children.push(new Paragraph({ children: [new TextRun({ text: `Teilnehmer: ${project.teilnehmer.join(", ")}` })] , spacing: { after: 200 } }));
+      children.push(new Paragraph({ children: [new TextRun({ text: `Teilnehmer: ${project.teilnehmer.join(", ")}` })], spacing: { after: 200 } }));
+    }
+
+    // ---- overview list ----
+    const titledEntries = project.entries.filter(e => e.title);
+    if (titledEntries.length > 1) {
+      titledEntries.forEach((e, i) => {
+        children.push(new Paragraph({ children: [new TextRun({ text: `${i + 1}. ${e.title}` })], spacing: { after: 40 } }));
+      });
+      children.push(new Paragraph({ children: [new TextRun({ text: "" })], spacing: { after: 160 } }));
     }
 
     const usableWidthPx = 620; // ~ content width at 96dpi for a two-column photo row
     const cellWidthPx = (usableWidthPx - 20) / 2;
     const maxHeightPx = 300;
 
-    async function imageRuns(photos) {
-      const runs = [];
-      for (const p of (photos || [])) {
-        const dims = await blobDims(p.blob);
-        let w = cellWidthPx, h = cellWidthPx * (dims.height / dims.width);
-        if (h > maxHeightPx) { h = maxHeightPx; w = maxHeightPx * (dims.width / dims.height); }
-        const buf = await p.blob.arrayBuffer();
-        runs.push(new ImageRun({ data: buf, transformation: { width: Math.round(w), height: Math.round(h) }, type: "jpg" }));
-      }
-      return runs;
-    }
-
     async function photoParagraphs(photos) {
       const paras = [];
-      const runs = await imageRuns(photos);
-      for (let i = 0; i < runs.length; i += 2) {
-        const pair = runs.slice(i, i + 2);
-        const children = [];
-        pair.forEach((r, idx) => {
-          children.push(r);
-          if (idx < pair.length - 1) children.push(new TextRun({ text: "   " }));
-        });
-        paras.push(new Paragraph({ children, spacing: { after: 160 } }));
+      const list = photos || [];
+      for (let i = 0; i < list.length; i += 2) {
+        const pair = list.slice(i, i + 2);
+        const runChildren = [];
+        for (let j = 0; j < pair.length; j++) {
+          const p = pair[j];
+          const dims = await blobDims(p.blob);
+          let w = cellWidthPx, h = cellWidthPx * (dims.height / dims.width);
+          if (h > maxHeightPx) { h = maxHeightPx; w = maxHeightPx * (dims.width / dims.height); }
+          const buf = await p.blob.arrayBuffer();
+          runChildren.push(new ImageRun({ data: buf, transformation: { width: Math.round(w), height: Math.round(h) }, type: "jpg" }));
+          if (j < pair.length - 1) runChildren.push(new TextRun({ text: "   " }));
+        }
+        paras.push(new Paragraph({ children: runChildren, spacing: { after: pair.some(p => p.caption) ? 40 : 160 } }));
+        if (pair.some(p => p.caption)) {
+          const capChildren = [];
+          pair.forEach((p, j) => {
+            capChildren.push(new TextRun({ text: p.caption || "", italics: true, size: 17, color: "6B7684" }));
+            if (j < pair.length - 1) capChildren.push(new TextRun({ text: "                              " }));
+          });
+          paras.push(new Paragraph({ children: capChildren, spacing: { after: 160 } }));
+        }
       }
       return paras;
     }
@@ -198,6 +300,24 @@ const Export = (() => {
         }
         children.push(...(await photoParagraphs(entry.fix.photos)));
       }
+    }
+
+    // ---- deadline & signature ----
+    if (project.deadline) {
+      children.push(new Paragraph({
+        children: [new TextRun({
+          text: `Frist zur Mängelbeseitigung: ${formatDateOnly(project.deadline)}`,
+          bold: true, underline: { type: UnderlineType.SINGLE }
+        })],
+        spacing: { before: 200, after: 80 }
+      }));
+    }
+    if (project.signedBy) {
+      const sigDate = project.signedDate ? `, ${formatDateOnly(project.signedDate)}` : "";
+      children.push(new Paragraph({
+        children: [new TextRun({ text: `Gez. ${project.signedBy}${sigDate}`, bold: true })],
+        spacing: { before: 100 }
+      }));
     }
 
     const doc = new Document({

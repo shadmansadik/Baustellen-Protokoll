@@ -7,8 +7,9 @@
  */
 const DB = (() => {
   const DB_NAME = "pdp-protokolle";
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   const STORE = "projects";
+  const SETTINGS_STORE = "settings";
   let dbPromise = null;
 
   function open() {
@@ -20,6 +21,9 @@ const DB = (() => {
         if (!db.objectStoreNames.contains(STORE)) {
           db.createObjectStore(STORE, { keyPath: "id" });
         }
+        if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
+          db.createObjectStore(SETTINGS_STORE, { keyPath: "id" });
+        }
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -30,6 +34,11 @@ const DB = (() => {
   async function tx(mode) {
     const db = await open();
     return db.transaction(STORE, mode).objectStore(STORE);
+  }
+
+  async function settingsTx(mode) {
+    const db = await open();
+    return db.transaction(SETTINGS_STORE, mode).objectStore(SETTINGS_STORE);
   }
 
   return {
@@ -65,6 +74,26 @@ const DB = (() => {
       return new Promise((resolve, reject) => {
         const req = store.delete(id);
         req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    },
+
+    /** Company profile (logo + name) used on every export. One record, id "company". */
+    async getSettings() {
+      const store = await settingsTx("readonly");
+      return new Promise((resolve, reject) => {
+        const req = store.get("company");
+        req.onsuccess = () => resolve(req.result || { id: "company", companyName: "", logoDataUrl: "" });
+        req.onerror = () => reject(req.error);
+      });
+    },
+
+    async saveSettings(settings) {
+      const store = await settingsTx("readwrite");
+      const record = Object.assign({ id: "company" }, settings);
+      return new Promise((resolve, reject) => {
+        const req = store.put(record);
+        req.onsuccess = () => resolve(record);
         req.onerror = () => reject(req.error);
       });
     }

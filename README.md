@@ -6,6 +6,31 @@ from the photos — in the same style as your two example documents.
 
 You don't need to know how to code. Just follow the steps below.
 
+## Updating an app you already have online
+
+If you already uploaded an earlier version to GitHub Pages: just upload these
+files again the same way (drag & drop, "Add file" → "Upload files", overwrite
+when asked). Your existing projects on each phone are safe — nothing gets
+deleted, the app just gains the new fields. Next time someone opens the app
+it picks up the update automatically within a few seconds.
+
+## What's new in this version
+
+- **Company logo** — add your logo once under the ⚙ (gear) icon on the home
+  screen; it then appears automatically on every PDF/Word export.
+- **Overview list** — exports now start with a numbered list of all
+  locations, like your original documents.
+- **Photo captions** — each photo now has an optional small caption field
+  (e.g. "Start Grube"), shown under the thumbnail and in the export.
+- **Reorder locations** — use the ▲▼ arrows on a project's location list to
+  put them in the order you want in the report.
+- **Progress tracking** — for Mängelbeseitigung and custom projects, mark
+  each location "Offen" or "Behoben" from within the entry; the project
+  screen shows a done/total progress bar.
+- **Deadline & signature** — a project's "✎ Bearbeiten" button now lets you
+  set a "Frist zur Mängelbeseitigung" (deadline) and "Gez." (signed by, with
+  date), both included at the end of the export.
+
 ## What's in this folder
 
 You don't need to open or understand these files. They're just listed here

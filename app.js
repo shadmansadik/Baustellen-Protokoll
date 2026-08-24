@@ -8,6 +8,7 @@ const appEl = document.getElementById("app");
 const headerTitle = document.getElementById("headerTitle");
 const btnBack = document.getElementById("btnBack");
 const btnAccount = document.getElementById("btnAccount");
+const btnSettings = document.getElementById("btnSettings");
 const toastEl = document.getElementById("toast");
 
 let backStack = [];
@@ -37,6 +38,7 @@ function goBack() {
 }
 
 btnBack.addEventListener("click", goBack);
+btnSettings.addEventListener("click", () => navigate("settings"));
 
 function setHeader(title, showBack) {
   headerTitle.textContent = title;
@@ -49,6 +51,8 @@ function render(name, params) {
   if (name === "new-project") return renderNewProject();
   if (name === "project") return renderProject(params.id);
   if (name === "entry") return renderEntry(params.projectId, params.entryId);
+  if (name === "edit-project") return renderEditProject(params.id);
+  if (name === "settings") return renderSettings();
 }
 
 // ============================================================ HOME
@@ -212,12 +216,30 @@ async function renderProject(id) {
 
   const typeLabels = { abnahme: "Abnahmeprotokoll", maengel: "Mängelbeseitigung", custom: "Eigenes Protokoll" };
   const metaBox = document.getElementById("projectMetaBox");
-  metaBox.innerHTML = `
+  const editBtn = document.getElementById("btnEditProject");
+  metaBox.insertAdjacentHTML("beforeend", `
     <h2>${escapeHtml(project.title)}</h2>
     <div class="meta-row"><span class="badge type-${project.type}">${typeLabels[project.type]}</span></div>
     ${project.termin ? `<div class="meta-row">Termin: ${new Date(project.termin).toLocaleString("de-DE")}</div>` : ""}
     ${project.teilnehmer.length ? `<div class="meta-row">Teilnehmer: ${escapeHtml(project.teilnehmer.join(", "))}</div>` : ""}
-  `;
+    ${project.deadline ? `<div class="meta-row">Frist zur Mängelbeseitigung: ${new Date(project.deadline).toLocaleDateString("de-DE")}</div>` : ""}
+    ${project.signedBy ? `<div class="meta-row">Gez.: ${escapeHtml(project.signedBy)}${project.signedDate ? ", " + new Date(project.signedDate).toLocaleDateString("de-DE") : ""}</div>` : ""}
+  `);
+  editBtn.addEventListener("click", () => navigate("edit-project", { id: project.id }));
+
+  const progressBox = document.getElementById("progressBox");
+  function renderProgress() {
+    const showProgress = project.type !== "abnahme" && project.entries.length > 0;
+    progressBox.hidden = !showProgress;
+    if (!showProgress) return;
+    const done = project.entries.filter(e => e.status === "done").length;
+    const total = project.entries.length;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    progressBox.innerHTML = `
+      <span class="progress-label">${done}/${total} behoben</span>
+      <div class="progress-bar-track"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+    `;
+  }
 
   const entryList = document.getElementById("entryList");
   const emptyState = document.getElementById("entryEmptyState");
@@ -225,23 +247,38 @@ async function renderProject(id) {
   function renderEntries() {
     entryList.innerHTML = "";
     emptyState.hidden = project.entries.length > 0;
-    for (const entry of project.entries) {
+    project.entries.forEach((entry, idx) => {
       const card = document.createElement("div");
       card.className = "entry-card";
       const firstPhoto = (entry.photos && entry.photos[0]) || null;
       const thumbSrc = firstPhoto ? (firstPhoto.blob ? URL.createObjectURL(firstPhoto.blob) : "") : "";
       const fixCount = entry.fix ? entry.fix.photos.length : 0;
+      const showStatus = project.type !== "abnahme";
       card.innerHTML = `
         ${thumbSrc ? `<img class="entry-thumb" src="${thumbSrc}">` : `<div class="entry-thumb"></div>`}
         <div class="entry-info">
-          <div class="e-title">${escapeHtml(entry.title || "(ohne Titel)")}</div>
+          <div class="e-title">${showStatus ? `<span class="status-dot ${entry.status === "done" ? "done" : ""}"></span>` : ""}${escapeHtml(entry.title || "(ohne Titel)")}</div>
           <div class="e-sub">${escapeHtml(entry.description || "")}</div>
           <div class="e-counts">${entry.photos.length} Foto(s)${entry.fix ? ` · ${fixCount} Behebungsfoto(s)` : ""}</div>
         </div>
+        <div class="entry-reorder">
+          <button type="button" class="btn-up" ${idx === 0 ? "disabled" : ""} aria-label="Nach oben">▲</button>
+          <button type="button" class="btn-down" ${idx === project.entries.length - 1 ? "disabled" : ""} aria-label="Nach unten">▼</button>
+        </div>
       `;
-      card.addEventListener("click", () => navigate("entry", { projectId: project.id, entryId: entry.id }));
+      card.querySelector(".entry-info").addEventListener("click", () => navigate("entry", { projectId: project.id, entryId: entry.id }));
+      card.querySelector(".entry-thumb").addEventListener("click", () => navigate("entry", { projectId: project.id, entryId: entry.id }));
+      card.querySelector(".btn-up").addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        if (ProjectModel.moveEntry(project, idx, "up")) { await DB.saveProject(project); renderEntries(); }
+      });
+      card.querySelector(".btn-down").addEventListener("click", async (ev) => {
+        ev.stopPropagation();
+        if (ProjectModel.moveEntry(project, idx, "down")) { await DB.saveProject(project); renderEntries(); }
+      });
       entryList.appendChild(card);
-    }
+    });
+    renderProgress();
   }
   renderEntries();
 
@@ -256,7 +293,8 @@ async function renderProject(id) {
   document.getElementById("btnExportPdf").addEventListener("click", async () => {
     try {
       showToast("PDF wird erstellt …");
-      const blob = await Export.buildPdf(project);
+      const settings = await DB.getSettings();
+      const blob = await Export.buildPdf(project, settings);
       Export.downloadBlob(blob, `${sanitizeFilename(project.title)}.pdf`);
       showToast("PDF heruntergeladen");
     } catch (e) {
@@ -268,7 +306,8 @@ async function renderProject(id) {
   document.getElementById("btnExportDocx").addEventListener("click", async () => {
     try {
       showToast("Word-Dokument wird erstellt …");
-      const blob = await Export.buildDocx(project);
+      const settings = await DB.getSettings();
+      const blob = await Export.buildDocx(project, settings);
       Export.downloadBlob(blob, `${sanitizeFilename(project.title)}.docx`);
       showToast("Word-Dokument heruntergeladen");
     } catch (e) {
@@ -320,6 +359,24 @@ async function renderEntry(projectId, entryId) {
   document.getElementById("entryTitle").value = entry.title || "";
   document.getElementById("entryDescription").value = entry.description || "";
 
+  const statusRow = document.getElementById("statusToggleRow");
+  const statusBtn = document.getElementById("btnToggleStatus");
+  const showStatus = project.type !== "abnahme";
+  statusRow.hidden = !showStatus;
+  function renderStatusBtn() {
+    const isDone = entry.status === "done";
+    statusBtn.textContent = isDone ? "Behoben" : "Offen";
+    statusBtn.classList.toggle("is-done", isDone);
+  }
+  if (showStatus) {
+    renderStatusBtn();
+    statusBtn.addEventListener("click", async () => {
+      entry.status = entry.status === "done" ? "open" : "done";
+      renderStatusBtn();
+      await DB.saveProject(project);
+    });
+  }
+
   const fixSection = document.getElementById("fixSection");
   const showFix = project.type !== "abnahme";
   fixSection.hidden = !showFix;
@@ -331,9 +388,11 @@ async function renderEntry(projectId, entryId) {
   const photoGrid = document.getElementById("photoGrid");
   const fixPhotoGrid = document.getElementById("fixPhotoGrid");
 
-  function renderPhotoGrid(grid, photos, onRemove) {
+  function renderPhotoGrid(grid, photos) {
     grid.innerHTML = "";
     photos.forEach((photo, idx) => {
+      const cell = document.createElement("div");
+      cell.className = "photo-cell";
       const item = document.createElement("div");
       item.className = "photo-item";
       const src = photo.blob ? URL.createObjectURL(photo.blob) : "";
@@ -345,9 +404,20 @@ async function renderEntry(projectId, entryId) {
       item.querySelector(".photo-remove").addEventListener("click", async () => {
         photos.splice(idx, 1);
         await DB.saveProject(project);
-        renderPhotoGrid(grid, photos, onRemove);
+        renderPhotoGrid(grid, photos);
       });
-      grid.appendChild(item);
+      const captionInput = document.createElement("input");
+      captionInput.type = "text";
+      captionInput.className = "photo-caption-input";
+      captionInput.placeholder = "Beschriftung (optional)";
+      captionInput.value = photo.caption || "";
+      captionInput.addEventListener("change", async () => {
+        photo.caption = captionInput.value.trim();
+        await DB.saveProject(project);
+      });
+      cell.appendChild(item);
+      cell.appendChild(captionInput);
+      grid.appendChild(cell);
     });
   }
   renderPhotoGrid(photoGrid, entry.photos);
@@ -394,6 +464,86 @@ async function renderEntry(projectId, entryId) {
     await DB.saveProject(project);
     showToast("Eintrag gelöscht");
     navigate("project", { id: project.id }, { replace: true });
+  });
+}
+
+// ======================================================= EDIT PROJECT
+
+async function renderEditProject(id) {
+  const project = await DB.getProject(id);
+  if (!project) { navigate("home", {}, { replace: true }); return; }
+
+  setHeader("Projekt bearbeiten", true);
+  const tpl = document.getElementById("tpl-edit-project");
+  appEl.appendChild(tpl.content.cloneNode(true));
+
+  document.getElementById("editTitle").value = project.title || "";
+  document.getElementById("editTermin").value = project.termin || "";
+  document.getElementById("editTeilnehmer").value = (project.teilnehmer || []).join("\n");
+  document.getElementById("editDeadline").value = project.deadline || "";
+  document.getElementById("editSignedBy").value = project.signedBy || "";
+  document.getElementById("editSignedDate").value = project.signedDate || "";
+
+  document.getElementById("formEditProject").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const fd = new FormData(ev.target);
+    project.title = fd.get("title").trim();
+    project.termin = fd.get("termin") || "";
+    project.teilnehmer = fd.get("teilnehmer").split("\n").map(s => s.trim()).filter(Boolean);
+    project.deadline = fd.get("deadline") || "";
+    project.signedBy = fd.get("signedBy").trim();
+    project.signedDate = fd.get("signedDate") || "";
+    project.updatedAt = new Date().toISOString();
+    await DB.saveProject(project);
+    showToast("Gespeichert");
+    navigate("project", { id: project.id }, { replace: true });
+  });
+}
+
+// ============================================================ SETTINGS
+
+async function renderSettings() {
+  setHeader("Firmenprofil", true);
+  const tpl = document.getElementById("tpl-settings");
+  appEl.appendChild(tpl.content.cloneNode(true));
+
+  const settings = await DB.getSettings();
+  document.getElementById("settingsCompanyName").value = settings.companyName || "";
+
+  const previewWrap = document.getElementById("logoPreviewWrap");
+  const previewImg = document.getElementById("logoPreview");
+  let currentLogoDataUrl = settings.logoDataUrl || "";
+
+  function refreshPreview() {
+    previewWrap.hidden = !currentLogoDataUrl;
+    if (currentLogoDataUrl) previewImg.src = currentLogoDataUrl;
+  }
+  refreshPreview();
+
+  document.getElementById("settingsLogoInput").addEventListener("change", (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      currentLogoDataUrl = reader.result;
+      refreshPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  document.getElementById("btnRemoveLogo").addEventListener("click", () => {
+    currentLogoDataUrl = "";
+    refreshPreview();
+  });
+
+  document.getElementById("formSettings").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    await DB.saveSettings({
+      companyName: document.getElementById("settingsCompanyName").value.trim(),
+      logoDataUrl: currentLogoDataUrl
+    });
+    showToast("Firmenprofil gespeichert");
+    goBack();
   });
 }
 

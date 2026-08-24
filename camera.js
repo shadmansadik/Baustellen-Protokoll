@@ -162,7 +162,8 @@ const Camera = (() => {
       gps,
       address: address ? address.short : null,
       addressFull: address ? address.full : null,
-      timestamp: now.toISOString()
+      timestamp: now.toISOString(),
+      caption: "" // optional short label the user can add afterwards, e.g. "Start Grube"
     };
   }
 

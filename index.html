@@ -18,6 +18,7 @@
 <header class="app-header">
   <button id="btnBack" class="icon-btn" hidden aria-label="Zurück">←</button>
   <h1 id="headerTitle">Baustellen-Protokoll</h1>
+  <button id="btnSettings" class="icon-btn" aria-label="Firmenprofil">⚙</button>
   <button id="btnAccount" class="icon-btn" aria-label="Konto / Drive">☁︎</button>
 </header>
 
@@ -81,7 +82,10 @@
 
 <template id="tpl-project">
   <section class="screen">
-    <div class="project-meta" id="projectMetaBox"></div>
+    <div class="project-meta" id="projectMetaBox">
+      <button id="btnEditProject" class="btn-edit-link">✎ Bearbeiten</button>
+    </div>
+    <div class="progress-box" id="progressBox" hidden></div>
 
     <div class="section-heading">
       <h2>Orte / Einträge</h2>
@@ -110,6 +114,11 @@
       <label>Beschreibung (Zustand / Mangel)
         <textarea name="description" id="entryDescription" rows="3" placeholder="z. B. Pflaster regulieren, gebrochene Steine raus"></textarea>
       </label>
+
+      <div class="status-toggle-row" id="statusToggleRow" hidden>
+        <span class="hint" style="margin:0;">Status</span>
+        <button type="button" id="btnToggleStatus" class="btn btn-small status-btn">Offen</button>
+      </div>
 
       <div class="photo-section">
         <div class="photo-section-head">
@@ -141,6 +150,60 @@
 
       <button type="submit" class="btn btn-primary btn-block">Speichern</button>
       <button type="button" id="btnDeleteEntry" class="btn btn-danger btn-block">Eintrag löschen</button>
+    </form>
+  </section>
+</template>
+
+<template id="tpl-edit-project">
+  <section class="screen">
+    <form id="formEditProject" class="form">
+      <label>Titel
+        <input type="text" name="title" id="editTitle" required>
+      </label>
+
+      <label>Termin (Datum &amp; Uhrzeit)
+        <input type="datetime-local" name="termin" id="editTermin">
+      </label>
+
+      <label>Teilnehmer (einer pro Zeile)
+        <textarea name="teilnehmer" id="editTeilnehmer" rows="3"></textarea>
+      </label>
+
+      <label>Frist zur Mängelbeseitigung
+        <input type="date" name="deadline" id="editDeadline">
+      </label>
+
+      <label>Gez. (unterschrieben von)
+        <input type="text" name="signedBy" id="editSignedBy" placeholder="z. B. Herr Müller">
+      </label>
+
+      <label>Datum der Unterschrift
+        <input type="date" name="signedDate" id="editSignedDate">
+      </label>
+
+      <button type="submit" class="btn btn-primary btn-block">Speichern</button>
+    </form>
+  </section>
+</template>
+
+<template id="tpl-settings">
+  <section class="screen">
+    <form id="formSettings" class="form">
+      <p class="hint">Dieses Firmenprofil wird automatisch auf jeden PDF- und Word-Export gesetzt (Logo oben im Dokument). Es bleibt nur auf diesem Gerät gespeichert.</p>
+
+      <label>Firmenname
+        <input type="text" name="companyName" id="settingsCompanyName" placeholder="z. B. Muster GmbH">
+      </label>
+
+      <label>Logo
+        <input type="file" accept="image/*" id="settingsLogoInput">
+      </label>
+      <div id="logoPreviewWrap" class="logo-preview-wrap" hidden>
+        <img id="logoPreview" class="logo-preview" alt="Logo-Vorschau">
+        <button type="button" id="btnRemoveLogo" class="btn btn-small btn-danger">Logo entfernen</button>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block">Speichern</button>
     </form>
   </section>
 </template>

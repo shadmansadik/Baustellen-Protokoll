@@ -4,7 +4,7 @@
  * sync and the CDN libraries still need network — that's expected for
  * a field-photo tool, this just keeps the app itself from going blank.
  */
-const CACHE_NAME = "pdp-shell-v1";
+const CACHE_NAME = "pdp-shell-v2";
 const SHELL_FILES = [
   "./",
   "./index.html",
