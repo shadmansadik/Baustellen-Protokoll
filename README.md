@@ -16,10 +16,31 @@ it picks up the update automatically within a few seconds.
 
 ## What's new in this version
 
+- **Dedicated cover page** — the export now opens with a clean first page
+  containing only the logo, title, Termin and Teilnehmer. Locations start
+  on the next page.
+- **Anmerkungen page** — under a project's "✎ Bearbeiten" button, you can
+  now add opening remarks (optionally attributed to someone, e.g. "Herr
+  Müller"), one per line. These get their own page as a bulleted list,
+  right after the cover.
+- **Title and photos stay together** — a location's heading, description
+  and first photo no longer get split across a page break.
+- **Tighter, fuller photo layout** — photos now fill their full column
+  width instead of shrinking and leaving a gap between them.
+- **Page border** — every page of the PDF now has a thin frame, closer to
+  your original documents. (Word gets the same treatment where the
+  library supports it — see note below.)
+- **Upload photos from the gallery/computer** — next to "Aufnehmen", a new
+  "Aus Galerie" button lets you pick already-taken photos instead of using
+  the camera. If those photos already have GPS/time saved inside them
+  (most phone photos do), the app reads that automatically — no new GPS
+  lookup needed. You can select several photos at once.
+- **Removed the overview list** — reports go straight from the cover page
+  into the location entries.
+- **Bigger photo thumbnails** — 2 per row instead of 3–4, easier to review
+  on-site.
 - **Company logo** — add your logo once under the ⚙ (gear) icon on the home
   screen; it then appears automatically on every PDF/Word export.
-- **Overview list** — exports now start with a numbered list of all
-  locations, like your original documents.
 - **Photo captions** — each photo now has an optional small caption field
   (e.g. "Start Grube"), shown under the thumbnail and in the export.
 - **Reorder locations** — use the ▲▼ arrows on a project's location list to
@@ -30,6 +51,11 @@ it picks up the update automatically within a few seconds.
 - **Deadline & signature** — a project's "✎ Bearbeiten" button now lets you
   set a "Frist zur Mängelbeseitigung" (deadline) and "Gez." (signed by, with
   date), both included at the end of the export.
+
+A note on the Word page border: it uses a newer part of the docx library
+that this app's exact CDN version may or may not fully support. If you
+open a Word export and don't see a border, the rest of the document is
+unaffected — let me know and I can pin a different library version.
 
 ## What's in this folder
 

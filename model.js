@@ -21,6 +21,8 @@ const ProjectModel = (() => {
       deadline: "",        // "Frist zur Mängelbeseitigung" — optional, set later
       signedBy: "",         // "Gez." — optional, set later
       signedDate: "",
+      notesAuthor: "",      // who made the opening remarks, e.g. "Herr Müller"
+      notes: "",            // free text, one remark per line -> bullet list on its own page
       entries: [],
       driveFolderId: null,
       driveJsonId: null,

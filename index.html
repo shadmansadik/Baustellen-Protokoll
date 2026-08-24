@@ -193,6 +193,15 @@
         <input type="date" name="signedDate" id="editSignedDate">
       </label>
 
+      <label>Anmerkungen von (optional)
+        <input type="text" name="notesAuthor" id="editNotesAuthor" placeholder="z. B. Herr Müller">
+      </label>
+
+      <label>Anmerkungen (eine pro Zeile, optional)
+        <textarea name="notes" id="editNotes" rows="4" placeholder="z. B.&#10;Düppelstr. 5-13: Abtreppung nicht berücksichtigt&#10;Alsenstr. 21-25: sieht im Foto wie Beton aus"></textarea>
+        <span class="hint">Erscheint als eigene Seite im Export, mit Aufzählungspunkten.</span>
+      </label>
+
       <button type="submit" class="btn btn-primary btn-block">Speichern</button>
     </form>
   </section>

@@ -491,6 +491,8 @@ async function renderEditProject(id) {
   document.getElementById("editDeadline").value = project.deadline || "";
   document.getElementById("editSignedBy").value = project.signedBy || "";
   document.getElementById("editSignedDate").value = project.signedDate || "";
+  document.getElementById("editNotesAuthor").value = project.notesAuthor || "";
+  document.getElementById("editNotes").value = project.notes || "";
 
   document.getElementById("formEditProject").addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -501,6 +503,8 @@ async function renderEditProject(id) {
     project.deadline = fd.get("deadline") || "";
     project.signedBy = fd.get("signedBy").trim();
     project.signedDate = fd.get("signedDate") || "";
+    project.notesAuthor = fd.get("notesAuthor").trim();
+    project.notes = fd.get("notes").trim();
     project.updatedAt = new Date().toISOString();
     await DB.saveProject(project);
     showToast("Gespeichert");
