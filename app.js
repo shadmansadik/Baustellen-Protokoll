@@ -423,29 +423,37 @@ async function renderEntry(projectId, entryId) {
   renderPhotoGrid(photoGrid, entry.photos);
   if (showFix) renderPhotoGrid(fixPhotoGrid, entry.fix.photos);
 
-  async function handlePhotoInput(inputEl, targetArray, grid) {
+  function handlePhotoInput(inputEl, targetArray, grid, processorFn) {
     inputEl.addEventListener("change", async () => {
-      const file = inputEl.files && inputEl.files[0];
+      const files = Array.from(inputEl.files || []);
       inputEl.value = "";
-      if (!file) return;
-      showToast("Foto wird verarbeitet …", 8000);
-      try {
-        const photo = await Camera.processCapturedPhoto(file, (msg) => showToast(msg, 8000));
-        targetArray.push(photo);
-        await DB.saveProject(project);
-        renderPhotoGrid(grid, targetArray);
-        showToast("Foto hinzugefügt");
-        if (!document.getElementById("entryTitle").value && photo.address) {
-          document.getElementById("entryTitle").value = photo.address;
+      if (!files.length) return;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const prefix = files.length > 1 ? `Foto ${i + 1}/${files.length}: ` : "";
+        showToast(prefix + "wird verarbeitet …", 8000);
+        try {
+          const photo = await processorFn(file, (msg) => showToast(prefix + msg, 8000));
+          targetArray.push(photo);
+          await DB.saveProject(project);
+          renderPhotoGrid(grid, targetArray);
+          if (!document.getElementById("entryTitle").value && photo.address) {
+            document.getElementById("entryTitle").value = photo.address;
+          }
+        } catch (e) {
+          console.error(e);
+          showToast("Foto konnte nicht verarbeitet werden: " + e.message);
         }
-      } catch (e) {
-        console.error(e);
-        showToast("Foto konnte nicht verarbeitet werden: " + e.message);
       }
+      showToast(files.length > 1 ? `${files.length} Fotos hinzugefügt` : "Foto hinzugefügt");
     });
   }
-  handlePhotoInput(document.getElementById("photoInput"), entry.photos, photoGrid);
-  if (showFix) handlePhotoInput(document.getElementById("fixPhotoInput"), entry.fix.photos, fixPhotoGrid);
+  handlePhotoInput(document.getElementById("photoInput"), entry.photos, photoGrid, Camera.processCapturedPhoto);
+  handlePhotoInput(document.getElementById("photoUploadInput"), entry.photos, photoGrid, Camera.processUploadedPhoto);
+  if (showFix) {
+    handlePhotoInput(document.getElementById("fixPhotoInput"), entry.fix.photos, fixPhotoGrid, Camera.processCapturedPhoto);
+    handlePhotoInput(document.getElementById("fixPhotoUploadInput"), entry.fix.photos, fixPhotoGrid, Camera.processUploadedPhoto);
+  }
 
   document.getElementById("formEntry").addEventListener("submit", async (ev) => {
     ev.preventDefault();

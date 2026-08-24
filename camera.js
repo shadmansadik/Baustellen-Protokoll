@@ -167,5 +167,65 @@ const Camera = (() => {
     };
   }
 
-  return { processCapturedPhoto, getPosition, reverseGeocode };
+  /**
+   * For photos picked from the gallery/computer instead of taken live.
+   * Reads GPS + capture time from the photo's own EXIF data (if present)
+   * instead of asking the device for its current location — the photo
+   * already has its own position and time baked in.
+   */
+  async function readExif(file) {
+    if (!window.exifr) return { gps: null, dateTaken: null };
+    try {
+      const data = await window.exifr.parse(file, {
+        gps: true,
+        pick: ["DateTimeOriginal", "CreateDate", "GPSLatitude", "GPSLongitude"]
+      });
+      if (!data) return { gps: null, dateTaken: null };
+      const gps = (typeof data.latitude === "number" && typeof data.longitude === "number")
+        ? { lat: data.latitude, lng: data.longitude, accuracy: null }
+        : null;
+      const dateTaken = (data.DateTimeOriginal instanceof Date && !isNaN(data.DateTimeOriginal))
+        ? data.DateTimeOriginal
+        : (data.CreateDate instanceof Date && !isNaN(data.CreateDate) ? data.CreateDate : null);
+      return { gps, dateTaken };
+    } catch (e) {
+      console.warn("EXIF-Auslesen fehlgeschlagen:", e);
+      return { gps: null, dateTaken: null };
+    }
+  }
+
+  async function processUploadedPhoto(file, onStatus) {
+    onStatus && onStatus("Foto-Daten werden gelesen …");
+    const { gps, dateTaken } = await readExif(file);
+
+    let address = null;
+    if (gps) {
+      onStatus && onStatus("Adresse wird ermittelt …");
+      address = await reverseGeocode(gps.lat, gps.lng);
+    }
+
+    onStatus && onStatus("Foto wird gestempelt …");
+    const bitmap = await loadOrientedBitmap(file);
+    const when = dateTaken || new Date(file.lastModified || Date.now());
+    const timestampText = formatTimestamp(when);
+    const addressText = address ? address.short : (gps ? "Adresse unbekannt" : "Kein GPS im Foto vorhanden");
+
+    const blob = await stampImage(bitmap, {
+      timestampText,
+      addressText,
+      gps
+    });
+
+    return {
+      id: "photo-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8),
+      blob,
+      gps,
+      address: address ? address.short : null,
+      addressFull: address ? address.full : null,
+      timestamp: when.toISOString(),
+      caption: ""
+    };
+  }
+
+  return { processCapturedPhoto, processUploadedPhoto, getPosition, reverseGeocode };
 })();

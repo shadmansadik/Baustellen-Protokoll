@@ -281,8 +281,20 @@ body {
   justify-content: space-between;
   gap: 10px;
   margin-bottom: 10px;
+  flex-wrap: wrap;
 }
 .photo-section-head h3 { margin: 0; font-size: 0.92rem; }
+.photo-btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.photo-btn-row .btn {
+  padding: 9px 12px;
+  font-size: 0.82rem;
+  min-height: 38px;
+  white-space: nowrap;
+}
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

@@ -123,13 +123,19 @@
       <div class="photo-section">
         <div class="photo-section-head">
           <h3>Fotos</h3>
-          <label class="btn btn-secondary file-btn">
-            📷 Foto aufnehmen
-            <input type="file" accept="image/*" capture="environment" id="photoInput" hidden>
-          </label>
+          <div class="photo-btn-row">
+            <label class="btn btn-secondary file-btn">
+              📷 Aufnehmen
+              <input type="file" accept="image/*" capture="environment" id="photoInput" hidden>
+            </label>
+            <label class="btn btn-secondary file-btn">
+              🖼️ Aus Galerie
+              <input type="file" accept="image/*" id="photoUploadInput" multiple hidden>
+            </label>
+          </div>
         </div>
         <div id="photoGrid" class="photo-grid"></div>
-        <p id="photoHint" class="hint">Beim Aufnehmen werden GPS-Position, Adresse und Zeitstempel automatisch auf das Foto gestempelt.</p>
+        <p id="photoHint" class="hint">„Aufnehmen“ stempelt die aktuelle Position aufs Foto. „Aus Galerie“ liest GPS &amp; Zeit aus vorhandenen Fotos aus, falls dort gespeichert.</p>
       </div>
 
       <div class="photo-section fix-section" id="fixSection">
@@ -140,10 +146,16 @@
           <textarea name="fixDescription" id="fixDescription" rows="2" placeholder="z. B. Steine ersetzt, Fugen neu verfüllt"></textarea>
         </label>
         <div class="photo-section-head">
-          <label class="btn btn-secondary file-btn">
-            📷 Foto aufnehmen
-            <input type="file" accept="image/*" capture="environment" id="fixPhotoInput" hidden>
-          </label>
+          <div class="photo-btn-row">
+            <label class="btn btn-secondary file-btn">
+              📷 Aufnehmen
+              <input type="file" accept="image/*" capture="environment" id="fixPhotoInput" hidden>
+            </label>
+            <label class="btn btn-secondary file-btn">
+              🖼️ Aus Galerie
+              <input type="file" accept="image/*" id="fixPhotoUploadInput" multiple hidden>
+            </label>
+          </div>
         </div>
         <div id="fixPhotoGrid" class="photo-grid"></div>
       </div>
@@ -211,6 +223,7 @@
 <!-- ===================== LIBRARIES (CDN) ===================== -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7.1.3/dist/full.umd.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <!-- ===================== APP CODE ===================== -->
